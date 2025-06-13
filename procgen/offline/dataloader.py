@@ -29,11 +29,21 @@ def load_episode(path) -> Dict[str, np.ndarray]:
     """
 
     with open(path, "rb") as f:
-        episode_npz = np.load(f, allow_pickle=True)
-        episode = {k: episode_npz[k] for k in episode_npz.keys()}
+        episode_data = np.load(f, allow_pickle=True)
+        if isinstance(episode_data, np.lib.npyio.NpzFile):
+            episode = {k: episode_data[k] for k in episode_data.files}
+        elif isinstance(episode_data, np.ndarray):
+            # Episodes stored with ``np.save`` will be loaded as a zero
+            # dimensional object array. Extract the dictionary with ``item``.
+            if episode_data.shape == () and isinstance(episode_data.item(), dict):
+                episode = episode_data.item()
+            else:
+                raise ValueError(f"Unsupported episode format for {path}")
+        else:
+            raise ValueError(f"Unsupported episode format for {path}")
 
     episode["observations"] = episode["observations"].astype(np.uint8)
-    episode["rewards"] = episode["rewards"].astype(np.float)
+    episode["rewards"] = episode["rewards"].astype(np.float32)
 
     return episode
 
