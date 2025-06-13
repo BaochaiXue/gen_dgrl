@@ -5,6 +5,9 @@ set -euo pipefail
 DATASET_DIR="${DATASET_DIR:-$(pwd)/data/expert_data_1M}"
 CHECKPOINT_DIR="${CHECKPOINT_DIR:-$(pwd)/checkpoints/iql}"
 
+# Ensure dataset and checkpoint directories exist
+mkdir -p "$DATASET_DIR" "$CHECKPOINT_DIR"
+
 # Step 1: Download the Procgen expert dataset (1M transitions)
 python download.py --download_folder "$DATASET_DIR" --category_name 1M_E --clear_archives_after_unpacking
 
