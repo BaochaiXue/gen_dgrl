@@ -19,12 +19,23 @@ from utils.utils import DatasetItemType
 
 
 def load_episode(path) -> Dict[str, np.ndarray]:
+    """Load an episode stored as an ``npz`` file.
+
+    Older datasets may store variable length arrays that are saved with
+    ``allow_pickle=True``.  ``numpy.load`` defaults to ``allow_pickle=False``
+    which results in ``ValueError: Object arrays cannot be loaded`` when such
+    files are read.  Explicitly enabling ``allow_pickle`` ensures backward
+    compatibility with these datasets.
+    """
+
     with open(path, "rb") as f:
-        episode = np.load(f)
-        episode = {k: episode[k] for k in episode.keys()}
-        episode['observations'] = episode['observations'].astype(np.uint8)
-        episode['rewards'] = episode['rewards'].astype(np.float)
-        return episode
+        episode_npz = np.load(f, allow_pickle=True)
+        episode = {k: episode_npz[k] for k in episode_npz.keys()}
+
+    episode["observations"] = episode["observations"].astype(np.uint8)
+    episode["rewards"] = episode["rewards"].astype(np.float)
+
+    return episode
 
 
 def compute_episode_length(episode: Dict[str, np.ndarray]) -> int:
