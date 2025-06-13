@@ -18,7 +18,9 @@ from train_scripts import arguments
 from utils.utils import merge_two_dicts, permutate_params_and_merge
 
 
-def generate_all_params(grid, defaults, num_trials=1, start_index=0) -> List[Dict[str, any]]:
+def generate_all_params(
+    grid, defaults, num_trials=1, start_index=0
+) -> List[Dict[str, any]]:
     grid = merge_two_dicts(
         grid,
         {
@@ -35,23 +37,35 @@ def generate_all_params(grid, defaults, num_trials=1, start_index=0) -> List[Dic
     ]
 
 
-def generate_command(params: Dict[str, any], newlines: bool, xpid_generator, algo: str) -> str:
+def generate_command(
+    params: Dict[str, any], newlines: bool, xpid_generator, algo: str
+) -> str:
     if xpid_generator:
         params["xpid"] = xpid_generator(params, algo) + f"_{params['xpid']}"
 
     separator = " \\\n" if newlines else " "
     header = f"python -m {args.module_name}"
-    cmd = [header] + [f"--{k}={vi}" for k, v in params.items() for vi in (v if isinstance(v, list) else [v])]
+    cmd = [header] + [
+        f"--{k}={vi}"
+        for k, v in params.items()
+        for vi in (v if isinstance(v, list) else [v])
+    ]
     return separator.join(cmd)
 
 
-def generate_slurm_commands(params: Dict[str, any], module_name: str, xpid_generator, algo: str) -> List[str]:
+def generate_slurm_commands(
+    params: Dict[str, any], module_name: str, xpid_generator, algo: str
+) -> List[str]:
     if xpid_generator:
         params["xpid"] = xpid_generator(params, algo) + f"_{params['xpid']}"
 
     header = [sys.executable, "-m", module_name]
     args = itertools.chain(
-        *[(f"--{k}", str(vi)) for k, v in params.items() for vi in (v if isinstance(v, list) else [v])]
+        *[
+            (f"--{k}", str(vi))
+            for k, v in params.items()
+            for vi in (v if isinstance(v, list) else [v])
+        ]
     )
     return header + list(args)
 
@@ -88,7 +102,9 @@ def xpid_from_params(p, algo: str = "") -> str:
         elif algo == "iql":
             algo_prefix = f"{algo_prefix}-t{p['iql_temperature']}-e{p['iql_expectile']}"
         elif algo in ["dt", "bct"]:
-            algo_prefix = f"{algo_prefix}-cl{p['dt_context_length']}-er{p['dt_eval_ret']}"
+            algo_prefix = (
+                f"{algo_prefix}-cl{p['dt_context_length']}-er{p['dt_eval_ret']}"
+            )
     elif algo == "ppo":
         algo_prefix = (
             f"{algo}-lr{p['lr']}-epoch{p['ppo_epoch']}-mb{p['num_mini_batch']}"
@@ -96,8 +112,8 @@ def xpid_from_params(p, algo: str = "") -> str:
         )
     else:
         algo_prefix = f"{algo}-lr{p['lr']}"
-    
-    if "early_stop" in p and p['early_stop']:
+
+    if "early_stop" in p and p["early_stop"]:
         algo_prefix = f"{algo_prefix}-es"
 
     return f"{env_prefix}-{algo_prefix}"
@@ -123,7 +139,9 @@ class LaunchExperiments:
                 )
             )
 
-        experiment_process = mp.Process(target=launch_experiment, args=[experiment_args])
+        experiment_process = mp.Process(
+            target=launch_experiment, args=[experiment_args]
+        )
         self.process = experiment_process
         experiment_process.start()
         experiment_process.join()
@@ -136,7 +154,9 @@ class LaunchExperiments:
         return submitit.helpers.DelayedSubmission(LaunchExperiments(), experiment_args)
 
 
-def schedule_slurm_jobs(all_params: List[Dict[str, any]], job_name: str, dry_run: bool) -> None:
+def schedule_slurm_jobs(
+    all_params: List[Dict[str, any]], job_name: str, dry_run: bool
+) -> None:
     now = datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S-%f")
 
     rootdir = os.path.expanduser(f"~/slurm/{job_name}")
@@ -161,7 +181,7 @@ def schedule_slurm_jobs(all_params: List[Dict[str, any]], job_name: str, dry_run
         ntasks_per_node=1,
         # job setup
         job_name=job_name,
-        mem="160GB",
+        mem="42GB",
         cpus_per_task=10,
         gpus_per_node=1,
         constraint="volta32gb",
@@ -186,7 +206,13 @@ if __name__ == "__main__":
 
     # Default Params
     defaults = json.load(
-        open(os.path.expandvars(os.path.expanduser(os.path.join("configs", args.base_config, "default.json"))))
+        open(
+            os.path.expandvars(
+                os.path.expanduser(
+                    os.path.join("configs", args.base_config, "default.json")
+                )
+            )
+        )
     )
     if args.checkpoint:
         defaults["resume"] = True
@@ -205,22 +231,34 @@ if __name__ == "__main__":
     config = json.load(
         open(
             os.path.expandvars(
-                os.path.expanduser(os.path.join("configs", args.base_config, "grids", args.grid_config + ".json"))
+                os.path.expanduser(
+                    os.path.join(
+                        "configs", args.base_config, "grids", args.grid_config + ".json"
+                    )
+                )
             )
         )
     )
-    all_params = generate_all_params(config["grid"], defaults, args.num_trials, args.start_index)
+    all_params = generate_all_params(
+        config["grid"], defaults, args.num_trials, args.start_index
+    )
     print(f"About to generate {len(all_params)} commands! \n")
 
     # Action
     if args.action == "PRINT":
-        cmds = [generate_command(params, args.new_line, xpid_from_params, args.grid_config) for params in all_params]
+        cmds = [
+            generate_command(params, args.new_line, xpid_from_params, args.grid_config)
+            for params in all_params
+        ]
 
         print("Generated Commands: \n")
         [print(f"{cmd} \n") for cmd in cmds]
 
     elif args.action == "SAVE":
-        cmds = [generate_command(params, args.new_line, xpid_from_params, args.grid_config) for params in all_params]
+        cmds = [
+            generate_command(params, args.new_line, xpid_from_params, args.grid_config)
+            for params in all_params
+        ]
 
         filename = f"{args.grid_config}_commands.txt"
         pathlib.Path(filename).touch()

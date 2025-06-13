@@ -31,7 +31,7 @@ def arg2str(k, v):
 
 
 class LaunchExperiments:
-    def __init__(self, module_name: str="offline"):
+    def __init__(self, module_name: str = "offline"):
         self.module_name = module_name
 
     def launch_experiment_and_remotenv(self, experiment_args):
@@ -46,17 +46,28 @@ class LaunchExperiments:
             args = itertools.chain(*[arg2str(k, v) for k, v in experiment_args.items()])
 
             if self.module_name == "offline":
-                subprocess.call([python_exec, "-m", "offline.train_offline_agent"] + list(args))
+                subprocess.call(
+                    [python_exec, "-m", "offline.train_offline_agent"] + list(args)
+                )
             elif self.module_name == "eval":
-                subprocess.call([python_exec, "-m", "offline.evaluate_offline_agent"] + list(args))
+                subprocess.call(
+                    [python_exec, "-m", "offline.evaluate_offline_agent"] + list(args)
+                )
             elif self.module_name == "single":
-                subprocess.call([python_exec, "-m", "offline.single_level_train_offline_agent"] + list(args))
+                subprocess.call(
+                    [python_exec, "-m", "offline.single_level_train_offline_agent"]
+                    + list(args)
+                )
             elif self.module_name == "data_collection":
-                subprocess.call([python_exec, "-m", "online.data_collector"] + list(args))
+                subprocess.call(
+                    [python_exec, "-m", "online.data_collector"] + list(args)
+                )
             else:
                 subprocess.call([python_exec, "-m", "online.trainer"] + list(args))
 
-        experiment_process = mp.Process(target=launch_experiment, args=[experiment_args])
+        experiment_process = mp.Process(
+            target=launch_experiment, args=[experiment_args]
+        )
         self.process = experiment_process
         experiment_process.start()
         experiment_process.join()
@@ -67,7 +78,9 @@ class LaunchExperiments:
     def checkpoint(self, experiment_args) -> submitit.helpers.DelayedSubmission:
         self.process.terminate()
         experiment_args["checkpoint"] = True
-        return submitit.helpers.DelayedSubmission(LaunchExperiments(self.module_name), experiment_args)
+        return submitit.helpers.DelayedSubmission(
+            LaunchExperiments(self.module_name), experiment_args
+        )
 
 
 def main(argv):
@@ -108,7 +121,7 @@ def main(argv):
         ntasks_per_node=1,
         # job setup
         job_name=FLAGS.name,
-        mem="512GB",
+        mem="42GB",
         cpus_per_task=10,
         gpus_per_node=1,
         constraint="volta32gb",
@@ -118,7 +131,9 @@ def main(argv):
     print("\nAbout to submit", len(all_args), "jobs")
 
     if not FLAGS.debug:
-        job = executor.map_array(LaunchExperiments(module_name=FLAGS.module_name), all_args)
+        job = executor.map_array(
+            LaunchExperiments(module_name=FLAGS.module_name), all_args
+        )
 
         for j in job:
             print("Submitted with job id: ", j.job_id)

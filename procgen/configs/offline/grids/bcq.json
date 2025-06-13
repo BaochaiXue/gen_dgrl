@@ -4,7 +4,7 @@
             "bcq"
         ],
         "dataset_size": [
-            1000000
+            150000
         ],
         "env_name": [
             "bigfish", "bossfight", "caveflyer", "chaser", "climber", "coinrun", "dodgeball", "fruitbot", "heist", "jumper", "leaper", "ninja", "maze", "miner", "plunder", "starpilot"

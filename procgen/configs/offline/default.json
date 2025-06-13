@@ -17,7 +17,7 @@
     "eval_eps": 0.001,
     "eval_freq": 10,
     "ckpt_freq": 10,
-    "dataset_size": 1000000,
+    "dataset_size": 150000,
     "early_stop": false,
 
     "target_update_freq": 1000,
