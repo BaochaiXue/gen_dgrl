@@ -43,7 +43,6 @@ python -m train_scripts.make_cmd \
   --checkpoint \
   --grid_config iql_pipeline \
   --num_trials 1 \
-  --new_line \
   --module_name offline.train_offline_agent > pipeline_commands.txt
 
 # Step 4: Run training sequentially
