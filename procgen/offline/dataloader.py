@@ -74,11 +74,16 @@ class OfflineDataset(torch.utils.data.Dataset):
     _capacity_type: str
     _specific_level_seed: Optional[int]
     _max_episodes: Optional[int]
-    
 
     def __init__(
-        self, capacity: int, episodes_dir_path: List[str], percentile: float = 1.0, zero_out_last_obs: bool = True,
-        capacity_type: str = 'transitions', specific_level_seed: Optional[int] = None, max_episodes: Optional[int] = None
+        self,
+        capacity: int,
+        episodes_dir_path: List[str],
+        percentile: float = 1.0,
+        zero_out_last_obs: bool = True,
+        capacity_type: str = "transitions",
+        specific_level_seed: Optional[int] = None,
+        max_episodes: Optional[int] = None,
     ) -> None:
         self._capacity = capacity
         self._episodes_dir_path = (
@@ -93,27 +98,34 @@ class OfflineDataset(torch.utils.data.Dataset):
         self._zero_out_last_obs = zero_out_last_obs
         self._specific_level_seed = specific_level_seed
         self._capacity_type = capacity_type
-        if self._capacity_type == 'episodes':
-            assert max_episodes is not None, "max_episodes must be specified when capacity_type is 'episodes'"
-        elif self._capacity_type == 'transitions':
-            assert max_episodes is None, "max_episodes must be None when capacity_type is 'transitions'"
+        if self._capacity_type == "episodes":
+            assert (
+                max_episodes is not None
+            ), "max_episodes must be specified when capacity_type is 'episodes'"
+        elif self._capacity_type == "transitions":
+            assert (
+                max_episodes is None
+            ), "max_episodes must be None when capacity_type is 'transitions'"
         self._max_episodes = max_episodes
         self._sort_by_return_and_load_by_percentile()
-        
+
     def _calc_average_return(self) -> float:
         # calculate average return across all episodes
         rewards = []
         for episode in self._episodes:
             rewards.append(np.sum(episode[DatasetItemType.REWARDS.value]))
         return np.mean(rewards)
-            
 
     def _sort_by_return_and_load_by_percentile(self) -> None:
         if self._loaded is True:
             return
 
         episode_filenames = sorted(
-            [f.path for directory in self._episodes_dir_path for f in os.scandir(directory)],
+            [
+                f.path
+                for directory in self._episodes_dir_path
+                for f in os.scandir(directory)
+            ],
             key=lambda path: OfflineDataset._fetch_return_from_path(path),
             reverse=True,
         )
@@ -128,7 +140,7 @@ class OfflineDataset(torch.utils.data.Dataset):
         # Store all episodes (capped by _capacity and _percentile) into _episodes
         for name in episode_filenames:
             if self._specific_level_seed is not None:
-                level_seed = int(name.split('/')[-1].split('_')[-2])
+                level_seed = int(name.split("/")[-1].split("_")[-2])
                 if level_seed != self._specific_level_seed:
                     continue
             episode = load_episode(name)
@@ -139,18 +151,25 @@ class OfflineDataset(torch.utils.data.Dataset):
 
             self._episodes.append(episode)
             self._size += curr_episode_len
-            if self._capacity_type  == 'transitions' and self._size > num_transitions:
+            if self._capacity_type == "transitions" and self._size > num_transitions:
                 break
-            elif self._capacity_type == 'episodes' and len(self._episodes) >= self._max_episodes:
+            elif (
+                self._capacity_type == "episodes"
+                and len(self._episodes) >= self._max_episodes
+            ):
                 break
 
-        print(f"[DEBUG] Loaded {len(self._episodes)} episodes with {self._size} transitions in total!")
+        print(
+            f"[DEBUG] Loaded {len(self._episodes)} episodes with {self._size} transitions in total!"
+        )
         self._loaded = True
         self._num_transitions = min(num_transitions, self._size)
 
         # _episode_lengths store the cumulated sum of lengths of episodes that are before the current one (included).
         # As if all stored episodes are concatenated.
-        self._episode_lengths = list(accumulate(compute_episode_length(episode) for episode in self._episodes))
+        self._episode_lengths = list(
+            accumulate(compute_episode_length(episode) for episode in self._episodes)
+        )
 
     @staticmethod
     def _fetch_return_from_path(path: str) -> float:
@@ -182,14 +201,17 @@ class OfflineDataset(torch.utils.data.Dataset):
         episode_idx = bisect.bisect_right(self._episode_lengths, index)
         curr = self._episodes[episode_idx]
         # Compute the offset within the episode
-        offset_in_episode = index - (0 if episode_idx == 0 else self._episode_lengths[episode_idx - 1])
+        offset_in_episode = index - (
+            0 if episode_idx == 0 else self._episode_lengths[episode_idx - 1]
+        )
 
         # Fetch corresponding state-action tuple.
         obs = curr[DatasetItemType.OBSERVATIONS.value][offset_in_episode]
         next_obs = (
             # If the episode is completed, the next_obs is a zero vector
             np.zeros_like(obs)
-            if self._zero_out_last_obs and curr[DatasetItemType.DONES.value][offset_in_episode]
+            if self._zero_out_last_obs
+            and curr[DatasetItemType.DONES.value][offset_in_episode]
             else curr[DatasetItemType.OBSERVATIONS.value][offset_in_episode + 1]
         )
         actions = curr[DatasetItemType.ACTIONS.value][offset_in_episode]
@@ -223,8 +245,8 @@ class OfflineDTDataset:
         context_len: int,
         rtg_noise_prob: float,
         percentile: float = 1.0,
-        specific_level_seed: Optional[int] = None, 
-        capacity_type: str = 'transitions'
+        specific_level_seed: Optional[int] = None,
+        capacity_type: str = "transitions",
     ) -> None:
         self._capacity = capacity
         self._episodes_dir_path = (
@@ -244,7 +266,7 @@ class OfflineDTDataset:
         self._size = 0
         self._percentile = percentile
         self._max_return = -float("inf")
-        
+
         self._specific_level_seed = specific_level_seed
         self._capacity_type = capacity_type
 
@@ -256,30 +278,35 @@ class OfflineDTDataset:
             return
 
         episode_filenames = [
-            name for gens in (directory.rglob("*.npz") for directory in self._episodes_dir_path) for name in gens
+            name
+            for gens in (
+                directory.rglob("*.npz") for directory in self._episodes_dir_path
+            )
+            for name in gens
         ]
-        
-        
+
         # Randomly shuffle episode files
         random.shuffle(episode_filenames)
-        
+
         print(f"[DEBUG] Total number of episodes: {len(episode_filenames)}.")
-        print(f"[DEBUG] Capacity: {self._capacity}. Loading {self._capacity} {self._capacity_type} ...")
+        print(
+            f"[DEBUG] Capacity: {self._capacity}. Loading {self._capacity} {self._capacity_type} ..."
+        )
 
         # Initialize count of tuples
         tuples_count = 0
 
         # Target number of tuples
         target_tuples = self._capacity
-        
+
         for name in tqdm(episode_filenames):
             if self._specific_level_seed is not None:
-                level_seed = int(str(name).split('/')[-1].split('_')[-2])
+                level_seed = int(str(name).split("/")[-1].split("_")[-2])
                 if level_seed != self._specific_level_seed:
                     continue
             # episode = load_episode(name)
             # curr_episode_len = compute_episode_length(episode)
-            curr_episode_len = int(name.stem.split('_')[-3])
+            curr_episode_len = int(name.stem.split("_")[-3])
             if curr_episode_len <= 3:
                 # Filter out invalid episodes
                 continue
@@ -310,7 +337,9 @@ class OfflineDTDataset:
         first_done = first[DatasetItemType.DONES.value][0]
 
         # Pick top percentile and reassemble
-        self._obs = np.empty(shape=(self._size, *first_obs.shape), dtype=first_obs.dtype)
+        self._obs = np.empty(
+            shape=(self._size, *first_obs.shape), dtype=first_obs.dtype
+        )
         self._actions = np.empty(shape=(self._size,), dtype=first_action.dtype)
         self._rewards = np.empty(shape=(self._size,), dtype=first_reward.dtype)
         self._return_to_gos = np.empty(shape=(self._size,), dtype=first_reward.dtype)
@@ -322,14 +351,22 @@ class OfflineDTDataset:
         idx = 0
         for curr_file in self._episodes:
             curr = load_episode(curr_file)
-            length = int(curr_file.stem.split('_')[-3]) #compute_episode_length(curr)
+            length = int(curr_file.stem.split("_")[-3])  # compute_episode_length(curr)
 
             end = min(idx + length, self._size)
 
-            self._obs[idx:end, :] = curr[DatasetItemType.OBSERVATIONS.value][: end - idx]
-            self._actions[idx:end] = curr[DatasetItemType.ACTIONS.value][: end - idx].squeeze(-1)
-            self._rewards[idx:end] = curr[DatasetItemType.REWARDS.value][: end - idx].squeeze(-1)
-            self._return_to_gos[idx:end] = OfflineDTDataset.compute_return_to_go(curr)[: end - idx].squeeze(-1)
+            self._obs[idx:end, :] = curr[DatasetItemType.OBSERVATIONS.value][
+                : end - idx
+            ]
+            self._actions[idx:end] = curr[DatasetItemType.ACTIONS.value][
+                : end - idx
+            ].squeeze(-1)
+            self._rewards[idx:end] = curr[DatasetItemType.REWARDS.value][
+                : end - idx
+            ].squeeze(-1)
+            self._return_to_gos[idx:end] = OfflineDTDataset.compute_return_to_go(curr)[
+                : end - idx
+            ].squeeze(-1)
             self._dones[idx:end] = curr[DatasetItemType.DONES.value][: end - idx]
             assert length == (end - idx)
             self._timesteps[idx:end] = np.arange(length)
@@ -352,7 +389,7 @@ class OfflineDTDataset:
         """
         idx = 0
         for curr in self._episodes:
-            length = int(curr.stem.split('_')[-3]) #compute_episode_length(curr)
+            length = int(curr.stem.split("_")[-3])  # compute_episode_length(curr)
 
             if idx + length >= self._size:
                 break
@@ -361,7 +398,8 @@ class OfflineDTDataset:
 
         last_episode = load_episode(self._episodes[-1])
         assert np.allclose(
-            self._actions[idx:], last_episode[DatasetItemType.ACTIONS.value][: self._size - idx].squeeze(-1)
+            self._actions[idx:],
+            last_episode[DatasetItemType.ACTIONS.value][: self._size - idx].squeeze(-1),
         ), "[ERROR] Sanity Check fails. Check the assembling logic of transitions."
 
         print("[DEBUG] Sanity Check succeeded.")
@@ -372,7 +410,7 @@ class OfflineDTDataset:
     @staticmethod
     def compute_return_to_go(episode: Dict[str, np.ndarray]) -> np.ndarray:
         return np.cumsum(episode[DatasetItemType.REWARDS.value][::-1], axis=0)[::-1]
-    
+
     def _calc_average_return(self) -> float:
         # calculate average return across all episodes
         rewards = []
@@ -398,7 +436,9 @@ class OfflineDTDataset:
             curr_ep_len = self._done_idxs[0]
 
         if curr_ep_len < block_size:
-            print("[DEBUG] The trajectory is shorter than the context size. Hence padding this trajectory.....")
+            print(
+                "[DEBUG] The trajectory is shorter than the context size. Hence padding this trajectory....."
+            )
             self._short_traj_count += 1
             if i > 0:
                 # find episode start index
@@ -407,33 +447,52 @@ class OfflineDTDataset:
                 idx = 0
         else:
             idx = done_idx - block_size
-        states = torch.tensor(np.array(self._obs[idx:done_idx]), dtype=torch.float32)  # (size, 3, 64, 64)
+        states = torch.tensor(
+            np.array(self._obs[idx:done_idx]), dtype=torch.float32
+        )  # (size, 3, 64, 64)
         # pad states if episode_len  = (done_idx - idx) < block_size
         states = torch.cat(
-            [states, torch.zeros(block_size - states.shape[0], *states.shape[1:])], dim=0
+            [states, torch.zeros(block_size - states.shape[0], *states.shape[1:])],
+            dim=0,
         )  # (block_size, 3, 64, 64)
         states = states.reshape(block_size, -1)  # (block_size, 3*64*64)
         states = states / 255.0
-        actions = torch.tensor(self._actions[idx:done_idx], dtype=torch.long).unsqueeze(1)  # (block_size, 1)
+        actions = torch.tensor(self._actions[idx:done_idx], dtype=torch.long).unsqueeze(
+            1
+        )  # (block_size, 1)
         actions = torch.cat(
-            [actions, torch.zeros(block_size - actions.shape[0], actions.shape[1]) + self._padding_action], dim=0
+            [
+                actions,
+                torch.zeros(block_size - actions.shape[0], actions.shape[1])
+                + self._padding_action,
+            ],
+            dim=0,
         )
         rtgs = self._return_to_gos[idx:done_idx]  # (context size,)
-        rtgs = np.pad(rtgs, (0, block_size - rtgs.shape[0]), mode="constant", constant_values=0)
+        rtgs = np.pad(
+            rtgs, (0, block_size - rtgs.shape[0]), mode="constant", constant_values=0
+        )
         if self._rtg_noise_prob > 0:
-            binary_mask = np.where(np.random.rand(done_idx - idx) < self._rtg_noise_prob)
+            binary_mask = np.where(
+                np.random.rand(done_idx - idx) < self._rtg_noise_prob
+            )
             # binary_mask[rtgs < 0] = 1
             # rtgs = np.multiply(rtgs, binary_mask)
-            random_rtgs = np.random.randint(self._min_rtgs, self._max_rtgs, size=rtgs.shape)
+            random_rtgs = np.random.randint(
+                self._min_rtgs, self._max_rtgs, size=rtgs.shape
+            )
             rtgs[binary_mask] = random_rtgs[binary_mask]
 
         rtgs = torch.tensor(rtgs, dtype=torch.float32).unsqueeze(1)
-        timesteps = torch.tensor(self._timesteps[idx : idx + 1], dtype=torch.int64).unsqueeze(1)
+        timesteps = torch.tensor(
+            self._timesteps[idx : idx + 1], dtype=torch.int64
+        ).unsqueeze(1)
         # mask where (done_idx - idx) < block_size is 1 else 0
-        padding_mask = torch.cat([torch.ones(done_idx - idx), torch.zeros(block_size - (done_idx - idx))], dim=0)
+        padding_mask = torch.cat(
+            [torch.ones(done_idx - idx), torch.zeros(block_size - (done_idx - idx))],
+            dim=0,
+        )
         return states, actions, rtgs, timesteps, padding_mask
-
-
 
 
 if __name__ == "__main__":
@@ -447,6 +506,8 @@ if __name__ == "__main__":
     for env in PROCGEN_ENVS:
         print(f"Processing {env}...")
         episodes_dir_path = os.path.join(DATASET_ROOT, env)
-        dataset = OfflineDataset(capacity=1000000, episodes_dir_path=episodes_dir_path, percentile=1.0)
+        dataset = OfflineDataset(
+            capacity=150000, episodes_dir_path=episodes_dir_path, percentile=1.0
+        )
 
         print(env, dataset._calc_average_return())
