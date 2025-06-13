@@ -1,0 +1,76 @@
+{
+    "grid": {
+        "algo": [
+            "iql"
+        ],
+        "dataset_size": [
+            1000000
+        ],
+        "env_name": [
+            "bigfish",
+            "bossfight",
+            "caveflyer",
+            "chaser",
+            "climber",
+            "coinrun",
+            "dodgeball",
+            "fruitbot",
+            "heist",
+            "jumper",
+            "leaper",
+            "ninja",
+            "maze",
+            "miner",
+            "plunder",
+            "starpilot"
+        ],
+        "dataset": [
+            "/home/zhangxinjie/gen_dgrl/procgen/data/expert_data_1M"
+        ],
+        "lr": [
+            0.0005
+        ],
+        "batch_size": [
+            512
+        ],
+        "epochs": [
+            100
+        ],
+        "agent_model": [
+            "pporesnetbase"
+        ],
+        "save_path": [
+            "/home/zhangxinjie/gen_dgrl/procgen/checkpoints/iql"
+        ],
+        "resume": [
+            true
+        ],
+        "iql_temperature": [
+            3.0
+        ],
+        "iql_expectile": [
+            0.8
+        ],
+        "target_update_freq": [
+            100
+        ],
+        "tau": [
+            0.005
+        ],
+        "hidden_size": [
+            256
+        ],
+        "eval_eps": [
+            0.0
+        ],
+        "eval_freq": [
+            1
+        ],
+        "ckpt_freq": [
+            10
+        ],
+        "early_stop": [
+            true
+        ]
+    }
+}

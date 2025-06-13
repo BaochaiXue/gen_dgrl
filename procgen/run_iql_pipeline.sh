@@ -5,16 +5,26 @@ set -euo pipefail
 DATASET_DIR="${DATASET_DIR:-$(pwd)/data/expert_data_1M}"
 CHECKPOINT_DIR="${CHECKPOINT_DIR:-$(pwd)/checkpoints/iql}"
 
+# Control parallelism when downloading and extracting
+N_DOWNLOAD_WORKERS="${N_DOWNLOAD_WORKERS:-4}"
+# Use a single extraction worker by default to reduce memory usage
+N_EXTRACT_WORKERS="${N_EXTRACT_WORKERS:-1}"
+
 # Ensure dataset and checkpoint directories exist
 mkdir -p "$DATASET_DIR" "$CHECKPOINT_DIR"
 
 # Step 1: Download the Procgen expert dataset (1M transitions)
-python download.py --download_folder "$DATASET_DIR" --category_name 1M_E --clear_archives_after_unpacking
-
+#python download.py --download_folder "$DATASET_DIR" --category_name 1M_E \
+#  --clear_archives_after_unpacking \
+#  --n_download_workers "$N_DOWNLOAD_WORKERS" \
+#  --n_extract_workers "$N_EXTRACT_WORKERS"
 # Step 2: Create a temporary config based on final/iql.json with paths filled in
 CONFIG_DIR="configs/offline/final"
 ORIG_CONFIG="$CONFIG_DIR/iql.json"
-PIPELINE_CONFIG=$(mktemp /tmp/iql_pipeline.XXXXXX.json)
+# Create a config file in the same directory that make_cmd expects
+PIPELINE_CONFIG="$CONFIG_DIR/iql_pipeline.json"
+# Ensure no stale config is present
+rm -f "$PIPELINE_CONFIG"
 python - "$ORIG_CONFIG" "$PIPELINE_CONFIG" "$DATASET_DIR" "$CHECKPOINT_DIR" <<'PY'
 import json, sys
 orig, dest, data_dir, ckpt_dir = sys.argv[1:]
@@ -50,3 +60,6 @@ while read -r cmd; do
   echo "Evaluating: $eval_cmd"
   eval "$eval_cmd"
 done < pipeline_commands.txt
+
+# Cleanup temporary config
+rm -f "$PIPELINE_CONFIG"
